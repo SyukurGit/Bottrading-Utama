@@ -8,6 +8,8 @@ from utils.coin_list import get_id_from_symbol
 BINANCE_SPOT_API_URL = "https://api.binance.com/api/v3/klines"
 BINANCE_FUTURES_API_URL = "https://fapi.binance.com"
 
+# ===== GANTI SELURUH FUNGSI DI BAWAH INI =====
+
 def get_coingecko_coin_data(symbol: str):
     """
     Mengambil data profil koin dari CoinGecko API, termasuk URL logo
@@ -41,17 +43,32 @@ def get_coingecko_coin_data(symbol: str):
         else:
             short_description = 'Tidak ada deskripsi.'
 
+        # ===== BLOK PERBAIKAN DIMULAI DI SINI =====
+        
         binance_symbol = None
         if 'tickers' in data:
             for ticker in data['tickers']:
-                if (ticker.get('market', {}).get('name') == 'Binance' and 
-                    ticker.get('target') == 'USDT'):
-                    binance_symbol = ticker.get('base')
-                    if binance_symbol.endswith("PERP"):
-                        binance_symbol = binance_symbol[:-4]
-                    break 
+                market_name = ticker.get('market', {}).get('name', '')
+                target_currency = ticker.get('target', '')
+                is_stale = ticker.get('is_stale', True)
 
-        # Ambil URL logo dari respons API
+                # Logika baru yang lebih fleksibel:
+                # 1. Cari pasar yang mengandung "Binance".
+                # 2. Pastikan BUKAN pasar "Futures".
+                # 3. Pastikan targetnya adalah "USDT".
+                # 4. Pastikan data tidak "stale" (usang).
+                if ('Binance' in market_name and 
+                    'Futures' not in market_name and 
+                    target_currency == 'USDT' and not is_stale):
+                    
+                    binance_symbol = ticker.get('base')
+                    # Hapus akhiran PERP jika ada (untuk keamanan)
+                    if binance_symbol and binance_symbol.endswith("PERP"):
+                        binance_symbol = binance_symbol[:-4]
+                    break # Hentikan loop setelah menemukan yang paling relevan
+
+        # ===== BLOK PERBAIKAN SELESAI =====
+
         image_url = data.get('image', {}).get('small', None)
 
         profile_data = {
@@ -68,6 +85,8 @@ def get_coingecko_coin_data(symbol: str):
     except requests.exceptions.RequestException as e:
         print(f"Gagal mengambil data dari CoinGecko untuk ID {coin_id}: {e}")
         return None
+
+# ===== FUNGSI LAINNYA TETAP SAMA =====
 
 def get_binance_kline_data(symbol: str, timeframe: str):
     """Mengambil data Kline (OHLCV) dari Binance Spot API."""
