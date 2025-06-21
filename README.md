@@ -1,4 +1,4 @@
-# Bot Analisis Trading Kripto dengan AI telee
+# Botk
 by:SyukurGit
 
 Bot Telegram canggih yang menyediakan analisis teknikal pasar kripto secara *real-time*. Dilengkapi dengan visualisasi *candlestick chart* dan analisis mendalam menggunakan Google Gemini AI, bot ini dirancang untuk membantu trader mengambil keputusan yang lebih baik.
