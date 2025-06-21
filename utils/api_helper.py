@@ -1,29 +1,25 @@
 # utils/api_helper.py
 
 import requests
-import time
 from config import COINGECKO_API_URL
-# ===== PERUBAHAN DIMULAI DI SINI =====
 from utils.coin_list import get_id_from_symbol
-# ===== PERUBAHAN SELESAI =====
 
 # Definisikan URL API untuk Spot dan Futures
 BINANCE_SPOT_API_URL = "https://api.binance.com/api/v3/klines"
-BINANCE_FUTURES_API_URL = "https://fapi.binance.com" # Untuk Funding Rate & Long/Short
+BINANCE_FUTURES_API_URL = "https://fapi.binance.com"
 
 def get_coingecko_coin_data(symbol: str):
-    """Mengambil data profil koin dari CoinGecko API."""
-    
-    # ===== PERUBAHAN DIMULAI DI SINI =====
-    # Cari ID koin secara dinamis dari daftar yang sudah dimuat
+    """
+    Mengambil data profil koin dari CoinGecko API, termasuk URL logo
+    dan simbol perdagangan yang sesuai di Binance.
+    """
     coin_id = get_id_from_symbol(symbol)
     if not coin_id:
-        return None # Token tidak ditemukan di daftar master
-    # ===== PERUBAHAN SELESAI =====
+        return None
 
     params = {
         'localization': 'false',
-        'tickers': 'false',
+        'tickers': 'true',
         'market_data': 'true',
         'community_data': 'false',
         'developer_data': 'false',
@@ -37,7 +33,6 @@ def get_coingecko_coin_data(symbol: str):
         data = res.json()
         
         description = data.get('description', {}).get('en', 'Tidak ada deskripsi.')
-        # Ambil beberapa kalimat pertama untuk ringkasan
         if description:
             sentences = description.split('. ')
             short_description = '. '.join(sentences[:2])
@@ -46,13 +41,28 @@ def get_coingecko_coin_data(symbol: str):
         else:
             short_description = 'Tidak ada deskripsi.'
 
+        binance_symbol = None
+        if 'tickers' in data:
+            for ticker in data['tickers']:
+                if (ticker.get('market', {}).get('name') == 'Binance' and 
+                    ticker.get('target') == 'USDT'):
+                    binance_symbol = ticker.get('base')
+                    if binance_symbol.endswith("PERP"):
+                        binance_symbol = binance_symbol[:-4]
+                    break 
+
+        # Ambil URL logo dari respons API
+        image_url = data.get('image', {}).get('small', None)
+
         profile_data = {
             "name": data.get('name', 'N/A'),
             "description": short_description,
             "market_cap": data.get('market_data', {}).get('market_cap', {}).get('usd', 0),
             "total_volume": data.get('market_data', {}).get('total_volume', {}).get('usd', 0),
             "total_supply": data.get('market_data', {}).get('total_supply', 0),
-            "current_price": data.get('market_data', {}).get('current_price', {}).get('usd', 0)
+            "current_price": data.get('market_data', {}).get('current_price', {}).get('usd', 0),
+            "binance_symbol": binance_symbol,
+            "image_url": image_url 
         }
         return profile_data
     except requests.exceptions.RequestException as e:

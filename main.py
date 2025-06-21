@@ -1,6 +1,7 @@
 # main.py
 
 import logging
+from telegram import BotCommand
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -16,25 +17,34 @@ from handlers.token_select import token_prompt, token_select
 from handlers.timeframe_select import timeframe_select
 from handlers.analysis import start_analysis_callback
 from utils.db import init_db
-# ===== PERUBAHAN DIMULAI DI SINI =====
-from utils.coin_list import load_coin_list
-# ===== PERUBAHAN SELESAI =====
+# Impor 'load_coin_list' sudah tidak diperlukan lagi, jadi kita hapus.
 
 # Definisikan state untuk ConversationHandler
 SELECTING_ACTION, SELECTING_TOKEN, SELECTING_TIMEFRAME = range(3)
+
+async def post_init_setup(application):
+    """
+    Fungsi ini akan dijalankan setelah Application dibuat,
+    tapi sebelum polling dimulai. Tempat yang sempurna untuk async setup.
+    """
+    await application.bot.set_my_commands([
+        BotCommand("start", "🚀 Kembali ke Menu Utama")
+    ])
 
 def main():
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
     )
     
-    # ===== PERUBAHAN DIMULAI DI SINI =====
-    # Muat daftar koin dari CoinGecko ke memori saat bot start
-    load_coin_list()
-    # ===== PERUBAHAN SELESAI =====
-    
+    # Fungsi load_coin_list() sudah dihapus dari sini.
     init_db()
-    app = ApplicationBuilder().token("7207657126:AAF53TTiNB_VIQcl_8bk5DfYKgZ6laX8izU").build()
+    
+    app = (
+        ApplicationBuilder()
+        .token("7207657126:AAF53TTiNB_VIQcl_8bk5DfYKgZ6laX8izU")
+        .post_init(post_init_setup)
+        .build()
+    )
 
     conv_handler = ConversationHandler(
         entry_points=[
@@ -59,6 +69,7 @@ def main():
     app.add_handler(CallbackQueryHandler(start_analysis_callback, pattern="start_analysis"))
     
     print("Bot is running...")
+    
     app.run_polling()
 
 if __name__ == '__main__':
