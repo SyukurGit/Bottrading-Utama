@@ -1,6 +1,7 @@
 # handlers/analysis.py
 
 import re
+import requests # <--- TAMBAHKAN IMPORT INI
 from telegram import ReplyKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import CallbackQueryHandler
@@ -11,6 +12,7 @@ from utils.ai_helper import get_professional_analysis
 from utils.chart_helper import generate_candlestick_chart
 
 def parse_analysis_for_levels(text: str) -> dict:
+    # ... (kode tidak berubah)
     levels = {}
     patterns = {
         'entry': r"Entry Price.*?\$\s*([\d,]+\.?\d*)",
@@ -46,7 +48,7 @@ async def start_analysis_callback(update, context):
 
         await query.edit_message_text(f"Mencari profil untuk {token_input.upper()} di CoinGecko...")
         
-        coin_profile = get_coingecko_coin_data(token_input) # Mengambil data profil, termasuk URL logo
+        coin_profile = get_coingecko_coin_data(token_input)
         
         if not coin_profile:
             await query.edit_message_text(f"❌ Gagal menemukan token dengan simbol `{token_input.upper()}`. Pastikan simbol sudah benar.")
@@ -54,15 +56,11 @@ async def start_analysis_callback(update, context):
 
         binance_symbol = coin_profile.get("binance_symbol")
         
-        # Fungsi helper untuk format angka
         def format_number(num):
             if num is None or num == 0: return "N/A"
             if num > 1: return f"${num:,.2f}"
             return f"${num:,.8f}"
 
-        # ===== PERUBAHAN UTAMA DIMULAI DI SINI =====
-
-        # 1. Kita hilangkan emoji '📊' dari teks judul.
         profile_text = (
             f"**{coin_profile['name']} ({token_input.upper()})**\n\n"
             f"{coin_profile['description']}\n\n"
@@ -72,24 +70,38 @@ async def start_analysis_callback(update, context):
             f"▪️ **Total Supply :** `{int(coin_profile['total_supply']):,}`"
         )
         
-        # 2. Kita cek apakah ada URL gambar. Jika ada, kirim sebagai foto dengan caption.
+        # ===== BLOK PERUBAHAN UTAMA DIMULAI DI SINI =====
         image_url = coin_profile.get("image_url")
         if image_url:
-            await context.bot.send_photo(
-                chat_id=query.message.chat_id,
-                photo=image_url,
-                caption=profile_text,
-                parse_mode=ParseMode.MARKDOWN
-            )
+            try:
+                # Unduh gambar ke memori
+                response = requests.get(image_url, timeout=10)
+                response.raise_for_status()
+                image_bytes = response.content
+
+                # Kirim data gambar (bytes) secara langsung
+                await context.bot.send_photo(
+                    chat_id=query.message.chat_id,
+                    photo=image_bytes,
+                    caption=profile_text,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            except requests.exceptions.RequestException as e:
+                # Jika gagal unduh gambar, kirim sebagai teks biasa saja
+                print(f"Gagal mengunduh gambar logo: {e}")
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id, 
+                    text=profile_text, 
+                    parse_mode=ParseMode.MARKDOWN
+                )
         else:
-            # Jika tidak ada gambar, kirim sebagai teks biasa.
+            # Jika tidak ada URL gambar, kirim sebagai teks biasa
             await context.bot.send_message(
                 chat_id=query.message.chat_id, 
                 text=profile_text, 
                 parse_mode=ParseMode.MARKDOWN
             )
-        
-        # ===== PERUBAHAN UTAMA SELESAI =====
+        # ===== BLOK PERUBAHAN UTAMA SELESAI =====
         
         if not binance_symbol:
             await context.bot.send_message(
@@ -102,6 +114,7 @@ async def start_analysis_callback(update, context):
             await context.bot.send_message(chat_id=query.message.chat_id, text="Silakan mulai lagi.", reply_markup=reply_markup)
             return
 
+        # ... sisa kode tidak berubah
         await context.bot.send_message(
             chat_id=query.message.chat_id, 
             text=f"Mengambil data pasar dari Binance untuk {binance_symbol.upper()}/USDT..."

@@ -8,8 +8,6 @@ from utils.coin_list import get_id_from_symbol
 BINANCE_SPOT_API_URL = "https://api.binance.com/api/v3/klines"
 BINANCE_FUTURES_API_URL = "https://fapi.binance.com"
 
-# ===== GANTI SELURUH FUNGSI DI BAWAH INI =====
-
 def get_coingecko_coin_data(symbol: str):
     """
     Mengambil data profil koin dari CoinGecko API, termasuk URL logo
@@ -43,8 +41,7 @@ def get_coingecko_coin_data(symbol: str):
         else:
             short_description = 'Tidak ada deskripsi.'
 
-        # ===== BLOK PERBAIKAN DIMULAI DI SINI =====
-        
+        # ===== LOGIKA PENCARIAN FINAL YANG DISEMPURNAKAN =====
         binance_symbol = None
         if 'tickers' in data:
             for ticker in data['tickers']:
@@ -52,24 +49,27 @@ def get_coingecko_coin_data(symbol: str):
                 target_currency = ticker.get('target', '')
                 is_stale = ticker.get('is_stale', True)
 
-                # Logika baru yang lebih fleksibel:
-                # 1. Cari pasar yang mengandung "Binance".
-                # 2. Pastikan BUKAN pasar "Futures".
-                # 3. Pastikan targetnya adalah "USDT".
-                # 4. Pastikan data tidak "stale" (usang).
+                # Gabungkan semua kondisi dalam satu pengecekan sederhana
                 if ('Binance' in market_name and 
                     'Futures' not in market_name and 
                     target_currency == 'USDT' and not is_stale):
                     
-                    binance_symbol = ticker.get('base')
-                    # Hapus akhiran PERP jika ada (untuk keamanan)
-                    if binance_symbol and binance_symbol.endswith("PERP"):
-                        binance_symbol = binance_symbol[:-4]
-                    break # Hentikan loop setelah menemukan yang paling relevan
+                    # Ambil simbol dasarnya
+                    base_symbol = ticker.get('base')
+                    
+                    # Pastikan simbol valid sebelum ditetapkan
+                    if base_symbol:
+                        binance_symbol = base_symbol
+                        # Jika sudah ditemukan, langsung hentikan pencarian
+                        break
+        
+        # ===== AKHIR DARI LOGIKA PENCARIAN FINAL =====
+        
+        # Bersihkan simbol dari 'PERP' jika ada (dobel pengamanan)
+        if binance_symbol and "PERP" in binance_symbol.upper():
+            binance_symbol = binance_symbol.upper().replace("PERP", "")
 
-        # ===== BLOK PERBAIKAN SELESAI =====
-
-        image_url = data.get('image', {}).get('small', None)
+        image_url = data.get('image', {}).get('large', None)
 
         profile_data = {
             "name": data.get('name', 'N/A'),
@@ -86,10 +86,7 @@ def get_coingecko_coin_data(symbol: str):
         print(f"Gagal mengambil data dari CoinGecko untuk ID {coin_id}: {e}")
         return None
 
-# ===== FUNGSI LAINNYA TETAP SAMA =====
-
 def get_binance_kline_data(symbol: str, timeframe: str):
-    """Mengambil data Kline (OHLCV) dari Binance Spot API."""
     interval_map = {'1h': '1h', '24h': '4h', '7d': '1d'}
     interval = interval_map.get(timeframe, '1h')
     formatted_symbol = symbol.upper() + "USDT"
@@ -105,7 +102,6 @@ def get_binance_kline_data(symbol: str, timeframe: str):
         return None
 
 def get_funding_rate(symbol: str):
-    """Mengambil Funding Rate terakhir dari Binance Futures."""
     params = {'symbol': symbol.upper() + "USDT"}
     try:
         res = requests.get(f"{BINANCE_FUTURES_API_URL}/fapi/v1/premiumIndex", params=params)
@@ -116,7 +112,6 @@ def get_funding_rate(symbol: str):
         return "Tidak tersedia"
 
 def get_long_short_ratio(symbol: str):
-    """Mengambil Global Long/Short Ratio dari Binance Futures."""
     params = {
         'symbol': symbol.upper() + "USDT",
         'period': '5m',
