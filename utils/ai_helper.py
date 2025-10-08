@@ -33,7 +33,7 @@ Isi template laporan di bawah ini dengan analisis Anda dalam format Markdown. Be
 * **Analisa Data Pasar:** [Analisis ringkas berdasarkan Funding Rate dan Long/Short Ratio.]
 """
 
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro-vision:generateContent"
     headers = {
         "Content-Type": "application/json",
         "x-goog-api-key": GEMINI_API_KEY,
